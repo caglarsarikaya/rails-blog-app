@@ -6,8 +6,8 @@
 - **Frontend:**
   - Traditional Rails ERB templates for core blog functionalities  
     *Using server-side rendering for simple pages to avoid unnecessary API calls and gain SEO advantages.*
-  - React or Vue (SPA) for dynamic components and the comment system  
-    *SPA is used for better performance in complex interactive components.*
+  - Vue (SPA) for dynamic components and the comment system   
+     *Vue is chosen for its ease of integration with Rails, simpler state management, and lower learning curve compared to React, making it ideal for a hybrid Rails application.*
 - **Database:** PostgreSQL  
   *The most preferred, scalable, and secure database in the Rails community.*
 - **Deployment:** Fully Dockerized  
