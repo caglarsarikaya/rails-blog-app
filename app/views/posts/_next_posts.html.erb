@@ -1,0 +1,22 @@
+<div class="space-y-4">
+  <% next_posts.each do |post| %>
+    <%= link_to post_path(post), class: "block hover:bg-gray-50 -mx-4 px-4 py-3 transition-colors duration-200" do %>
+      <div class="flex items-start">
+        <div class="flex-shrink-0">
+          <img class="h-10 w-10 rounded-full" src="https://ui-avatars.com/api/?name=<%= post.user.name || post.user.email %>&background=random" alt="">
+        </div>
+        <div class="ml-3 flex-1">
+          <p class="text-sm font-medium text-gray-900">
+            <%= post.title %>
+          </p>
+          <p class="mt-1 text-sm text-gray-500 line-clamp-2">
+            <%= post.content %>
+          </p>
+          <p class="mt-1 text-xs text-gray-500">
+            By <%= post.user.name.presence || post.user.email %> • <%= time_ago_in_words(post.created_at) %> ago
+          </p>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>

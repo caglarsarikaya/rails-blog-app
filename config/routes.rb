@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   resources :posts do
     member do
       get :next_post
+      get :previous_post
     end
   end
   

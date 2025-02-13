@@ -1,50 +1,19 @@
 <div class="bg-gray-50 min-h-screen" data-controller="infinite-scroll">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex flex-col lg:flex-row gap-8">
       <!-- Main content (2/3) -->
       <div class="lg:w-2/3">
-        <article class="bg-white shadow sm:rounded-lg overflow-hidden" data-infinite-scroll-target="post" data-post-id="<%= @post.id %>">
-          <div class="px-4 py-5 sm:p-6">
-            <!-- Author info -->
-            <div class="flex items-center mb-6">
-              <%= link_to user_path(@post.user), class: "group block flex-shrink-0" do %>
-                <div class="flex items-center">
-                  <div>
-                    <img class="inline-block h-12 w-12 rounded-full" src="https://ui-avatars.com/api/?name=<%= @post.user.name || @post.user.email %>&background=random" alt="">
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                      <%= @post.user.name.presence || @post.user.email %>
-                    </p>
-                    <p class="text-xs font-medium text-gray-500">
-                      Posted <%= time_ago_in_words(@post.created_at) %> ago
-                    </p>
-                  </div>
-                </div>
-              <% end %>
-            </div>
+        <div id="posts-container" class="space-y-8">
+          <%= render 'post', post: @post %>
+        </div>
 
-            <!-- Post content -->
-            <h1 class="text-3xl font-bold text-gray-900 mb-4">
-              <%= @post.title %>
-            </h1>
-
-            <div class="prose prose-indigo max-w-none">
-              <%= @post.content %>
-            </div>
-
-            <!-- Actions -->
-            <% if user_signed_in? && @post.user == current_user %>
-              <div class="mt-6 flex items-center space-x-4 border-t pt-6">
-                <%= link_to "Edit post", edit_post_path(@post), class: "inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
-                <%= button_to "Delete post", post_path(@post), method: :delete, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500", form: { data: { turbo_confirm: "Are you sure?" } } %>
-              </div>
-            <% end %>
+        <!-- Loading indicators -->
+        <div class="hidden" data-infinite-scroll-target="loadingNext">
+          <div class="flex justify-center items-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
-        </article>
-
-        <!-- Loading indicator -->
-        <div class="hidden" data-infinite-scroll-target="loading">
+        </div>
+        <div class="hidden" data-infinite-scroll-target="loadingPrevious">
           <div class="flex justify-center items-center py-8">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
@@ -56,27 +25,8 @@
         <div class="bg-white shadow sm:rounded-lg overflow-hidden sticky top-8">
           <div class="px-4 py-5 sm:p-6">
             <h2 class="text-lg font-medium text-gray-900 mb-4">More Posts</h2>
-            <div class="space-y-4">
-              <% @next_posts.each do |post| %>
-                <%= link_to post_path(post), class: "block hover:bg-gray-50 -mx-4 px-4 py-3 transition-colors duration-200" do %>
-                  <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                      <img class="h-10 w-10 rounded-full" src="https://ui-avatars.com/api/?name=<%= post.user.name || post.user.email %>&background=random" alt="">
-                    </div>
-                    <div class="ml-3 flex-1">
-                      <p class="text-sm font-medium text-gray-900">
-                        <%= post.title %>
-                      </p>
-                      <p class="mt-1 text-sm text-gray-500 line-clamp-2">
-                        <%= post.content %>
-                      </p>
-                      <p class="mt-1 text-xs text-gray-500">
-                        By <%= post.user.name.presence || post.user.email %> • <%= time_ago_in_words(post.created_at) %> ago
-                      </p>
-                    </div>
-                  </div>
-                <% end %>
-              <% end %>
+            <div id="next-posts-container">
+              <%= render 'next_posts', next_posts: @next_posts %>
             </div>
           </div>
         </div>
@@ -89,41 +39,107 @@
 <%= javascript_tag do %>
   document.addEventListener('turbo:load', function() {
     let loading = false;
+    let lastScrollY = window.scrollY;
     const container = document.querySelector('[data-controller="infinite-scroll"]');
-    const loadingIndicator = container.querySelector('[data-infinite-scroll-target="loading"]');
-    const currentPost = container.querySelector('[data-infinite-scroll-target="post"]');
+    const postsContainer = document.getElementById('posts-container');
+    const nextPostsContainer = document.getElementById('next-posts-container');
+    const loadingNext = container.querySelector('[data-infinite-scroll-target="loadingNext"]');
+    const loadingPrevious = container.querySelector('[data-infinite-scroll-target="loadingPrevious"]');
+    let currentPostId = <%= @post.id %>;
+    let hasNext = <%= @next_post.present? %>;
+    let hasPrevious = <%= @previous_post.present? %>;
 
-    function loadNextPost() {
-      if (loading) return;
-      
-      const postId = currentPost.dataset.postId;
-      loading = true;
-      loadingIndicator.classList.remove('hidden');
-
-      fetch(`/posts/${postId}/next_post`, {
-        headers: {
-          'Accept': 'text/html',
-          'Turbo-Frame': '_top'
+    // Function to ensure posts take at least full viewport height
+    function ensureMinHeight() {
+      const posts = postsContainer.querySelectorAll('article');
+      posts.forEach(post => {
+        const viewportHeight = window.innerHeight;
+        const postHeight = post.offsetHeight;
+        if (postHeight < viewportHeight) {
+          post.style.minHeight = `${viewportHeight}px`;
         }
-      }).then(response => {
-        if (response.redirected) {
-          window.location.href = response.url;
-        } else {
-          return response.text().then(html => {
-            document.documentElement.innerHTML = html;
-            history.pushState({}, '', `/posts/${postId}/next_post`);
-          });
-        }
-      }).finally(() => {
-        loading = false;
-        loadingIndicator.classList.add('hidden');
       });
     }
 
+    // Call on initial load
+    ensureMinHeight();
+
+    // Call on window resize
+    window.addEventListener('resize', ensureMinHeight);
+
+    function updateUrl(postId) {
+      history.pushState({}, '', `/posts/${postId}`);
+    }
+
+    function loadPost(postId, direction = 'next') {
+      if (loading) return;
+      
+      loading = true;
+      const loadingIndicator = direction === 'next' ? loadingNext : loadingPrevious;
+      loadingIndicator.classList.remove('hidden');
+
+      fetch(`/posts/${postId}.json`)
+        .then(response => response.json())
+        .then(data => {
+          // Update the current post ID and navigation state
+          currentPostId = data.post_id;
+          hasNext = data.has_next;
+          hasPrevious = data.has_previous;
+
+          // Update the URL to reflect the current post
+          updateUrl(currentPostId);
+
+          // Update the post content
+          if (direction === 'next') {
+            postsContainer.insertAdjacentHTML('beforeend', data.post);
+          } else {
+            postsContainer.insertAdjacentHTML('afterbegin', data.post);
+            // Adjust scroll position to maintain the same view
+            window.scrollBy(0, postsContainer.firstElementChild.offsetHeight);
+          }
+
+          // Ensure new post meets minimum height
+          ensureMinHeight();
+
+          // Update the next posts sidebar
+          nextPostsContainer.innerHTML = data.next_posts;
+
+          // Clean up old posts (keep only 3 in the DOM)
+          const posts = postsContainer.children;
+          if (posts.length > 3) {
+            if (direction === 'next') {
+              posts[0].remove();
+            } else {
+              posts[posts.length - 1].remove();
+            }
+          }
+        })
+        .finally(() => {
+          loading = false;
+          loadingIndicator.classList.add('hidden');
+        });
+    }
+
     window.addEventListener('scroll', () => {
-      if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 100) {
-        loadNextPost();
+      const currentScrollY = window.scrollY;
+      const scrollingDown = currentScrollY > lastScrollY;
+      const scrollingUp = currentScrollY < lastScrollY;
+      
+      // Calculate distances from top and bottom
+      const distanceFromTop = currentScrollY;
+      const distanceFromBottom = document.documentElement.scrollHeight - (currentScrollY + window.innerHeight);
+      
+      // Load next post when scrolling down near bottom
+      if (scrollingDown && distanceFromBottom < 200 && hasNext) {
+        loadPost(currentPostId, 'next');
       }
+      
+      // Load previous post when scrolling up near top
+      if (scrollingUp && distanceFromTop < 200 && hasPrevious) {
+        loadPost(currentPostId, 'previous');
+      }
+      
+      lastScrollY = currentScrollY;
     });
   });
 <% end %>
