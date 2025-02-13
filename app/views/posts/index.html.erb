@@ -1,4 +1,57 @@
-<div>
-  <h1 class="font-bold text-4xl">Posts#index</h1>
-  <p>Find me in app/views/posts/index.html.erb</p>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Blog Posts</h1>
+    <% if user_signed_in? %>
+      <%= link_to "New Post", new_post_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+    <% end %>
+  </div>
+
+  <% if @posts.any? %>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <% @posts.each do |post| %>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <img class="h-10 w-10 rounded-full" src="https://ui-avatars.com/api/?name=<%= post.user.email.split('@').first %>&background=random" alt="">
+              </div>
+              <div class="ml-4">
+                <div class="text-sm font-medium text-gray-900">
+                  <%= post.user.email %>
+                </div>
+                <div class="text-sm text-gray-500">
+                  <%= time_ago_in_words(post.created_at) %> ago
+                </div>
+              </div>
+            </div>
+            <div class="mt-4">
+              <h2 class="text-xl font-semibold text-gray-900">
+                <%= link_to post.title, post_path(post), class: "hover:text-indigo-600" %>
+              </h2>
+              <p class="mt-2 text-gray-600 line-clamp-3">
+                <%= post.content %>
+              </p>
+            </div>
+            <div class="mt-6 flex items-center justify-between">
+              <%= link_to "Read more", post_path(post), class: "text-sm font-medium text-indigo-600 hover:text-indigo-500" %>
+              <% if user_signed_in? && post.user == current_user %>
+                <div class="flex space-x-2">
+                  <%= link_to "Edit", edit_post_path(post), class: "text-sm text-gray-500 hover:text-gray-700" %>
+                  <%= button_to "Delete", post_path(post), method: :delete, class: "text-sm text-red-500 hover:text-red-700", form: { data: { turbo_confirm: "Are you sure?" } } %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="text-center py-12">
+      <h3 class="mt-2 text-sm font-medium text-gray-900">No posts yet</h3>
+      <p class="mt-1 text-sm text-gray-500">Get started by creating a new post.</p>
+      <div class="mt-6">
+        <%= link_to "New Post", new_post_path, class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+      </div>
+    </div>
+  <% end %>
 </div>

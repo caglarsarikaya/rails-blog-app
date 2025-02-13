@@ -1,10 +1,10 @@
 class PostsController < ApplicationController
   before_action :authenticate_user!, except: [:index, :show]
   before_action :set_post, only: [:show, :edit, :update, :destroy]
-  after_action :verify_authorized, except: [:index]
+  after_action :verify_authorized, except: [:index, :show]
 
   def index
-    @posts = Post.all
+    @posts = Post.all.order(created_at: :desc)
   end
 
   def show
