@@ -3,7 +3,7 @@
     <div class="flex flex-col lg:flex-row gap-8">
       <!-- Main content (2/3) -->
       <div class="lg:w-2/3">
-        <div id="posts-container" class="space-y-8">
+        <div id="posts-container" class="space-y-8" data-start-post-id="<%= @post.id %>">
           <%= render 'post', post: @post %>
         </div>
 
@@ -45,9 +45,12 @@
     const nextPostsContainer = document.getElementById('next-posts-container');
     const loadingNext = container.querySelector('[data-infinite-scroll-target="loadingNext"]');
     const loadingPrevious = container.querySelector('[data-infinite-scroll-target="loadingPrevious"]');
-    let currentPostId = <%= @post.id %>;
+    const startPostId = parseInt(postsContainer.dataset.startPostId);
+    let currentPostId = startPostId;
     let hasNext = <%= @next_post.present? %>;
     let hasPrevious = <%= @previous_post.present? %>;
+    let visiblePosts = new Set([currentPostId]);
+    let lastVisiblePost = currentPostId;
 
     // Function to ensure posts take at least full viewport height
     function ensureMinHeight() {
@@ -68,11 +71,41 @@
     window.addEventListener('resize', ensureMinHeight);
 
     function updateUrl(postId) {
-      history.pushState({}, '', `/posts/${postId}`);
+      if (postId !== lastVisiblePost) {
+        history.pushState({}, '', `/posts/${postId}`);
+        lastVisiblePost = postId;
+      }
+    }
+
+    // Function to determine which post is currently most visible
+    function updateVisiblePost() {
+      const posts = postsContainer.querySelectorAll('.post-container');
+      let maxVisibleHeight = 0;
+      let mostVisiblePost = null;
+
+      posts.forEach(post => {
+        const rect = post.getBoundingClientRect();
+        const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+        
+        if (visibleHeight > maxVisibleHeight) {
+          maxVisibleHeight = visibleHeight;
+          mostVisiblePost = post.querySelector('article');
+        }
+      });
+
+      if (mostVisiblePost) {
+        const postId = parseInt(mostVisiblePost.dataset.postId);
+        updateUrl(postId);
+      }
     }
 
     function loadPost(postId, direction = 'next') {
       if (loading) return;
+      
+      // Don't load previous posts before the start post
+      if (direction === 'previous' && postId <= startPostId) {
+        return;
+      }
       
       loading = true;
       const loadingIndicator = direction === 'next' ? loadingNext : loadingPrevious;
@@ -81,27 +114,19 @@
       fetch(`/posts/${postId}.json`)
         .then(response => response.json())
         .then(data => {
-          // Update the current post ID and navigation state
           currentPostId = data.post_id;
           hasNext = data.has_next;
           hasPrevious = data.has_previous;
 
-          // Update the URL to reflect the current post
-          updateUrl(currentPostId);
-
-          // Update the post content
           if (direction === 'next') {
             postsContainer.insertAdjacentHTML('beforeend', data.post);
           } else {
             postsContainer.insertAdjacentHTML('afterbegin', data.post);
-            // Adjust scroll position to maintain the same view
             window.scrollBy(0, postsContainer.firstElementChild.offsetHeight);
           }
 
-          // Ensure new post meets minimum height
+          visiblePosts.add(currentPostId);
           ensureMinHeight();
-
-          // Update the next posts sidebar
           nextPostsContainer.innerHTML = data.next_posts;
 
           // Clean up old posts (keep only 3 in the DOM)
@@ -120,26 +145,37 @@
         });
     }
 
+    // Throttle scroll event handler
+    let scrollTimeout;
     window.addEventListener('scroll', () => {
-      const currentScrollY = window.scrollY;
-      const scrollingDown = currentScrollY > lastScrollY;
-      const scrollingUp = currentScrollY < lastScrollY;
-      
-      // Calculate distances from top and bottom
-      const distanceFromTop = currentScrollY;
-      const distanceFromBottom = document.documentElement.scrollHeight - (currentScrollY + window.innerHeight);
-      
-      // Load next post when scrolling down near bottom
-      if (scrollingDown && distanceFromBottom < 200 && hasNext) {
-        loadPost(currentPostId, 'next');
+      if (scrollTimeout) {
+        window.cancelAnimationFrame(scrollTimeout);
       }
-      
-      // Load previous post when scrolling up near top
-      if (scrollingUp && distanceFromTop < 200 && hasPrevious) {
-        loadPost(currentPostId, 'previous');
-      }
-      
-      lastScrollY = currentScrollY;
+
+      scrollTimeout = window.requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY;
+        const scrollingDown = currentScrollY > lastScrollY;
+        const scrollingUp = currentScrollY < lastScrollY;
+        
+        // Calculate distances from top and bottom
+        const distanceFromTop = currentScrollY;
+        const distanceFromBottom = document.documentElement.scrollHeight - (currentScrollY + window.innerHeight);
+        
+        // Update visible post
+        updateVisiblePost();
+        
+        // Load next post when scrolling down near bottom
+        if (scrollingDown && distanceFromBottom < 200 && hasNext) {
+          loadPost(currentPostId, 'next');
+        }
+        
+        // Load previous post when scrolling up near top
+        if (scrollingUp && distanceFromTop < 200 && hasPrevious && currentPostId > startPostId) {
+          loadPost(currentPostId, 'previous');
+        }
+        
+        lastScrollY = currentScrollY;
+      });
     });
   });
 <% end %>

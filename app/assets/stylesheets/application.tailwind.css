@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Social media colors */
+.hover\:text-facebook:hover {
+  color: #1877f2;
+}
+
+.hover\:text-twitter:hover {
+  color: #1da1f2;
+}
+
+.hover\:text-linkedin:hover {
+  color: #0077b5;
+}
