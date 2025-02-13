@@ -1,0 +1,66 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Profile header -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+    <div class="px-4 py-5 sm:px-6">
+      <div class="flex items-center">
+        <div class="flex-shrink-0 h-20 w-20">
+          <img class="h-20 w-20 rounded-full" src="https://ui-avatars.com/api/?name=<%= @user.name || @user.email %>&size=80&background=random" alt="">
+        </div>
+        <div class="ml-6">
+          <h1 class="text-2xl font-bold text-gray-900">
+            <%= @user.name.presence || @user.email %>
+          </h1>
+          <% if @user.bio.present? %>
+            <p class="mt-1 text-sm text-gray-500">
+              <%= @user.bio %>
+            </p>
+          <% end %>
+          <% if current_user == @user %>
+            <div class="mt-2">
+              <%= link_to "Edit Profile Settings", settings_user_path(@user), class: "text-sm text-indigo-600 hover:text-indigo-900" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User's posts -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <h2 class="text-lg font-medium text-gray-900">Posts</h2>
+    </div>
+    <div class="border-t border-gray-200">
+      <% if @posts.any? %>
+        <div class="divide-y divide-gray-200">
+          <% @posts.each do |post| %>
+            <div class="px-4 py-6 sm:px-6">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xl font-medium text-gray-900">
+                  <%= link_to post.title, post_path(post), class: "hover:text-indigo-600" %>
+                </h3>
+                <p class="text-sm text-gray-500">
+                  <%= time_ago_in_words(post.created_at) %> ago
+                </p>
+              </div>
+              <div class="mt-2 text-sm text-gray-600 line-clamp-3">
+                <%= post.content %>
+              </div>
+              <div class="mt-4 flex items-center space-x-4">
+                <%= link_to "Read more", post_path(post), class: "text-sm font-medium text-indigo-600 hover:text-indigo-500" %>
+                <% if current_user == @user %>
+                  <%= link_to "Edit", edit_post_path(post), class: "text-sm text-gray-500 hover:text-gray-700" %>
+                  <%= button_to "Delete", post_path(post), method: :delete, class: "text-sm text-red-500 hover:text-red-700", form: { data: { turbo_confirm: "Are you sure?" } } %>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="px-4 py-6 sm:px-6 text-center text-gray-500">
+          No posts yet
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

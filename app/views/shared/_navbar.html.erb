@@ -13,7 +13,11 @@
           <div class="ml-4 flex items-center md:ml-6">
             <div class="relative">
               <div class="flex items-center space-x-4">
-                <span class="text-gray-700"><%= current_user.email %></span>
+                <%= link_to user_path(current_user), class: "flex items-center text-gray-500 hover:text-gray-700" do %>
+                  <img class="h-8 w-8 rounded-full" src="https://ui-avatars.com/api/?name=<%= current_user.name || current_user.email %>&background=random" alt="">
+                  <span class="ml-2"><%= current_user.name.presence || current_user.email %></span>
+                <% end %>
+                <%= link_to "Settings", settings_user_path(current_user), class: "text-gray-500 hover:text-gray-700" %>
                 <%= button_to "Sign out", destroy_user_session_path, method: :delete, class: "text-gray-500 hover:text-gray-700" %>
               </div>
             </div>
